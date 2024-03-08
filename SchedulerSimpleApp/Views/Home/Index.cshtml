@@ -1,0 +1,149 @@
+@model IEnumerable<DevExtreme.MVC.Demos.Models.Appointment>
+
+@{
+    ViewBag.Title = "Index";
+}
+
+<h2>Home</h2>
+
+<div id="schedulerView">
+    @(Html.DevExtreme().Scheduler()
+    .ID("scheduler")
+        .DataSource(Model)
+        .TimeZone("America/Los_Angeles")
+        .TextExpr("Text")
+        .StartDateExpr("StartDate")
+        .EndDateExpr("EndDate")
+        .AllDayExpr("AllDay")
+        .Views(new[] {
+            SchedulerViewType.Week,
+            SchedulerViewType.Month
+        })
+        .CurrentView(SchedulerViewType.Week)
+        .CurrentDate(new DateTime(2024, 3, 08))
+        .StartDayHour(9)
+        .Height(730)
+        .DataCellTemplate(new JS("dataCellTemplate"))
+        .DateCellTemplate(new JS("dateCellTemplate"))
+        .OnAppointmentFormOpening("vacationForm_created")
+        .OnCellClick("handleCellClick") // Handle date cell clicks for new vacation selection
+)
+</div>
+
+<script>
+    var isTouchDevice = 'ontouchstart' in window || navigator.maxTouchPoints > 0 || navigator.msMaxTouchPoints > 0;
+
+    var startDateSelected = null;
+    var endDateSelected = null;
+
+    $(document).ready(function () {
+        $("#scheduler").dxScheduler({
+            onAppointmentFormOpening: vacationForm_created
+        });
+    });
+
+    function dataCellTemplate(itemData, itemIndex, itemElement) {
+        var date = itemData.startDate; // Extracts the start date from the item data.
+        // Creates an element for displaying the date number, positioned typically at the top-right.
+        var dateNumberElement = $('<div class="date-number">' + itemData.text + '</div>');
+        // Base element to contain both the date number and, if applicable, the holiday name.
+        var element = $('<div class="date-cell"></div>').append(dateNumberElement);
+
+        return itemElement.append(element); // Returns the modified cell element.
+    }
+
+    function dateCellTemplate(itemData, itemIndex, itemElement) {
+        var element = $('<div>' + itemData.text + '</div>'); // Creates a basic element with the date text.
+        return itemElement.append(element); // Returns the modified cell element.
+    }
+
+    function vacationForm_created(e) {
+        var form = e.form;
+        
+        // Sets up toolbar items, including conditionally showing submit buttons based on edit state
+        var toolbarItems = [
+            {
+                toolbar: 'bottom',
+                location: 'after',
+                widget: 'dxButton',
+                options: {
+                    text: 'Cancel!',
+                    onClick: function () {
+                        e.popup.hide(); // Close the popup
+                    }
+                }
+            }
+        ];
+
+            toolbarItems.unshift({
+                toolbar: 'bottom',
+                location: 'after',
+                widget: 'dxButton',
+                options: {
+                    text: 'Delete',
+                    type: 'danger',
+                    onClick: function () {
+                        if (confirm("Are you sure you want to delete this vacation?")) {
+                            e.popup.hide(); // Close the popup
+                        }
+                    }
+                }
+            });
+
+            toolbarItems.unshift({
+                toolbar: 'bottom',
+                location: 'after',
+                widget: 'dxButton',
+                options: {
+                    text: 'Submit',
+                    type: 'success',
+                    onClick: function () {
+                        e.popup.hide(); // Close the popup
+
+                    }
+                }
+            });
+
+        e.popup.option('toolbarItems', toolbarItems);
+    }
+
+    function handleCellClick(e) {
+        var clickedDate = e.cellData.startDate;
+        if (startDateSelected) {
+            handleSingleClick(clickedDate);
+        }
+        else {
+            startDateSelected = clickedDate;
+        }
+    }
+
+    function handleSingleClick(clickedDate) {
+        // Ignore single clicks if not on a touch device to prevent unintended interactions.
+        if (!isTouchDevice || !startDateSelected) {
+            return;
+        }
+
+        var schedulerInstance = $("#scheduler").dxScheduler("instance");
+
+        endDateSelected = clickedDate;
+
+        var sampleData = {
+            StartDate: startDateSelected,
+            EndDate: endDateSelected
+        };
+
+        console.log(sampleData);
+
+        // Programmatically add the new appointment to the Scheduler
+        // This will not yet show the appointment form
+        schedulerInstance.addAppointment(sampleData)
+
+        // Programmatically show the appointment form for the newly added appointment
+        schedulerInstance.showAppointmentPopup(sampleData, true);
+
+        // Reset the start and end dates for future selections.
+        startDateSelected = null;
+        endDateSelected = null;
+
+    }
+</script>
